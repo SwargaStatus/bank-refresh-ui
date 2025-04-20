@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Bank Refresh</title>
+</head>
+<body class="p-6">
+  <h1 class="text-xl mb-4">Daily Bank Refresh</h1>
+  <button id="refresh" class="px-4 py-2 bg-blue-600 text-white rounded">Refresh & Link</button>
+  <p id="status" class="mt-4"></p>
+
+  <script src="https://cdn.plaid.com/link/v2/stable/link-initialize.js"></script>
+  <script>
+    async function createLinkToken() {
+      const resp = await fetch('/api/createLinkToken');
+      return resp.json();
+    }
+    async function exchangePublicToken(token) {
+      await fetch('/api/exchangePublicToken', {
+        method: 'POST',
+        headers: { 'Content-Type':'application/json' },
+        body: JSON.stringify({ public_token: token })
+      });
+    }
+
+    document.getElementById('refresh').onclick = async () => {
+      document.getElementById('status').textContent = 'Generating Link Token…';
+      const { link_token } = await createLinkToken();
+      const handler = Plaid.create({
+        token: link_token,
+        onSuccess: async (public_token, metadata) => {
+          document.getElementById('status').textContent = 'Storing token and refreshing…';
+          await exchangePublicToken(public_token);
+          document.getElementById('status').textContent = '✅ All done! Data is on its way.';
+        },
+        onExit: err => {
+          if (err) document.getElementById('status').textContent = 'Error: ' + err.display_message;
+        }
+      });
+      handler.open();
+    };
+  </script>
+</body>
+</html>
